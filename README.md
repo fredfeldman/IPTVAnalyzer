@@ -1,5 +1,7 @@
 # IPTV Analyzer
 
+[![CI](https://github.com/fredfeldman/IPTVAnalyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/fredfeldman/IPTVAnalyzer/actions/workflows/ci.yml)
+
 Live monitoring of IPTV **multicast feeds** and health checks for **M3U playlists of HLS channels**, with a web dashboard.
 .NET 10, no external dependencies (the dashboard is plain HTML/JS and works on isolated networks).
 
