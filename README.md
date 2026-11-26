@@ -104,3 +104,7 @@ workflow artifact without creating a release.
 * IPv4 multicast only. PCR accuracy (jitter against arrival time) is not measured: software timestamps are too coarse.
 * AES-128/SAMPLE-AES segments are not decrypted, so their content is not inspected.
 * On Windows, allow `dotnet.exe` / the app through the firewall for inbound UDP when receiving from other hosts.
+
+## License
+
+[MIT](LICENSE)

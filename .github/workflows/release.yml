@@ -55,7 +55,7 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           dotnet publish tools/IPTVAnalyzer.Sender @common
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          Copy-Item README.md $out
+          Copy-Item README.md, LICENSE $out
           Remove-Item "$out/appsettings.Development.json" -ErrorAction SilentlyContinue
           Get-ChildItem $out -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
 
@@ -89,7 +89,8 @@ jobs:
           $pkg = '${{ steps.version.outputs.package }}'
           Compress-Archive -Path "artifacts/$pkg/*" -DestinationPath "artifacts/$pkg.zip"
           $hash = (Get-FileHash "artifacts/$pkg.zip" -Algorithm SHA256).Hash.ToLower()
-          "$hash  $pkg.zip" | Set-Content -Encoding ascii "artifacts/$pkg.zip.sha256"
+          # LF line ending so `sha256sum -c` also works on Linux/macOS.
+          [IO.File]::WriteAllText("$PWD/artifacts/$pkg.zip.sha256", "$hash  $pkg.zip`n")
           "zip=artifacts/$pkg.zip" >> $env:GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v4
