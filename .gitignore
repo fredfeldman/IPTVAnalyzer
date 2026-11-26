@@ -1,0 +1,8 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+src/IPTVAnalyzer.Web/monitors.json
+src/IPTVAnalyzer.Web/monitors.json.tmp
+*.ts

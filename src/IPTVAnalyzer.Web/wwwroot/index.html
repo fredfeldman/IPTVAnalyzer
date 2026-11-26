@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IPTV Analyzer</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">IPTV Analyzer</div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="mc" role="tab">Multicast <span class="tab-count" id="mc-count"></span></button>
+    <button class="tab" data-tab="hls" role="tab">HLS / M3U <span class="tab-count" id="hls-count"></span></button>
+  </nav>
+  <div class="topbar-right">
+    <span id="conn" class="conn">connecting…</span>
+    <button id="theme-toggle" class="btn ghost" title="Toggle light/dark">Theme</button>
+  </div>
+</header>
+
+<main>
+  <!-- ================= MULTICAST ================= -->
+  <section id="tab-mc" class="tab-panel active">
+    <form id="mc-add" class="toolbar">
+      <label>Address <input name="address" required placeholder="239.1.1.1:1234 or 10.0.0.5@232.1.1.1:5000" size="34"></label>
+      <label>Name <input name="name" placeholder="optional"></label>
+      <label>Interface IP <input name="interface" placeholder="default" size="14"></label>
+      <button class="btn primary" type="submit">Add feed</button>
+      <span class="form-error" id="mc-add-error"></span>
+    </form>
+    <div id="mc-summary" class="summary-row"></div>
+    <div id="mc-grid" class="card-grid"></div>
+    <p id="mc-empty" class="empty hidden">No multicast feeds yet. Add a group above, e.g. <code>239.1.1.1:1234</code>
+      (raw UDP or RTP are detected automatically; use <code>source@group:port</code> for SSM).</p>
+  </section>
+
+  <!-- ================= HLS ================= -->
+  <section id="tab-hls" class="tab-panel">
+    <div class="hls-layout">
+      <aside class="pl-side">
+        <h2>Playlists</h2>
+        <ul id="pl-list" class="pl-list"></ul>
+        <form id="pl-add" class="pl-form">
+          <h3>Add playlist</h3>
+          <label>M3U URL or file path <input name="source" required placeholder="https://… /playlist.m3u"></label>
+          <label>Name <input name="name" placeholder="optional"></label>
+          <div class="row2">
+            <label>Interval (min) <input name="intervalMinutes" type="number" min="0" step="1" value="15"></label>
+            <label>Parallel <input name="maxConcurrency" type="number" min="1" max="64" value="8"></label>
+          </div>
+          <div class="row2">
+            <label>Variant <select name="variantSelection"><option>Highest</option><option>Lowest</option><option>All</option></select></label>
+            <label>Timeout (s) <input name="timeoutSeconds" type="number" min="2" max="120" value="15"></label>
+          </div>
+          <label>User-Agent <input name="userAgent" placeholder="IPTVAnalyzer/1.0"></label>
+          <label class="check"><input type="checkbox" name="checkLiveness" checked> Verify live playlists advance</label>
+          <button class="btn primary" type="submit">Add &amp; check</button>
+          <span class="form-error" id="pl-add-error"></span>
+        </form>
+      </aside>
+
+      <div class="pl-main">
+        <div id="pl-none" class="empty">Add an M3U playlist on the left to check its channels.</div>
+        <div id="pl-view" class="hidden">
+          <div class="pl-head">
+            <div>
+              <h2 id="pl-title"></h2>
+              <div id="pl-sub" class="muted small"></div>
+            </div>
+            <div class="pl-actions">
+              <button id="pl-run" class="btn primary">Check now</button>
+              <button id="pl-cancel" class="btn">Cancel</button>
+              <a id="pl-csv" class="btn" href="#">Export CSV</a>
+              <button id="pl-delete" class="btn danger">Remove</button>
+            </div>
+          </div>
+          <div id="pl-progress" class="progress hidden"><div class="bar"></div><span></span></div>
+          <div id="pl-stats" class="summary-row"></div>
+          <div class="filters">
+            <input id="f-text" type="search" placeholder="Filter by name, group or URL…">
+            <select id="f-status">
+              <option value="">All statuses</option><option>Error</option><option>Warning</option><option>Ok</option><option>Pending</option>
+            </select>
+            <select id="f-group"><option value="">All groups</option></select>
+            <span id="f-count" class="muted small"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="ch-table">
+              <thead><tr>
+                <th data-sort="status">Status</th><th data-sort="name">Channel</th><th data-sort="group">Group</th>
+                <th data-sort="kind">Type</th><th data-sort="http" class="num">HTTP</th><th data-sort="resp" class="num">Resp ms</th>
+                <th>Variant</th><th data-sort="ratio" class="num">DL ratio</th><th data-sort="rate" class="num">Bitrate</th>
+                <th>Live</th><th>Issue</th><th data-sort="checked">Checked</th><th></th>
+              </tr></thead>
+              <tbody id="ch-body"></tbody>
+            </table>
+          </div>
+          <details class="events-box">
+            <summary>Playlist events</summary>
+            <ul id="pl-events" class="events"></ul>
+          </details>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Multicast detail drawer -->
+<div id="drawer" class="drawer hidden" aria-hidden="true">
+  <div class="drawer-head">
+    <div>
+      <h2 id="d-title"></h2>
+      <div id="d-sub" class="muted small"></div>
+    </div>
+    <div class="pl-actions">
+      <button id="d-reset" class="btn">Reset counters</button>
+      <button id="d-delete" class="btn danger">Remove</button>
+      <button id="d-close" class="btn ghost" aria-label="Close">✕</button>
+    </div>
+  </div>
+  <div class="drawer-body">
+    <div id="d-kpis" class="kpis"></div>
+    <div class="charts">
+      <div class="chart-box"><div class="chart-title">Bitrate (Mb/s), last 10 min</div><div id="d-chart-rate" class="chart"></div></div>
+      <div class="chart-box"><div class="chart-title">MDI delay factor (ms), last 10 min</div><div id="d-chart-df" class="chart"></div></div>
+    </div>
+    <h3>ETSI TR 101 290</h3>
+    <div id="d-tr" class="tr-grid"></div>
+    <h3>Programs</h3>
+    <div id="d-programs"></div>
+    <h3>PIDs</h3>
+    <div class="table-wrap"><table class="pid-table"><thead><tr>
+      <th class="num">PID</th><th>Content</th><th class="num">Packets</th><th class="num">Bitrate</th><th class="num">CC err</th>
+      <th class="num">TEI</th><th class="num">Max PCR int.</th><th>Flags</th></tr></thead><tbody id="d-pids"></tbody></table></div>
+    <h3>Events</h3>
+    <ul id="d-events" class="events"></ul>
+  </div>
+</div>
+<div id="tooltip" class="tooltip hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
