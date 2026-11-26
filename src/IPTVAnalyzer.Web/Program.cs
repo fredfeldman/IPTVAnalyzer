@@ -4,7 +4,11 @@ using IPTVAnalyzer.Core.Hls;
 using IPTVAnalyzer.Core.Multicast;
 using IPTVAnalyzer.Web.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+// A published build carries wwwroot next to the exe: use that folder as content root, so the app finds
+// its dashboard, appsettings.json and monitors.json no matter which directory it is started from.
+// (During `dotnet run` wwwroot is served from the project folder and is not in the output directory.)
+var publishedRoot = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot")) ? AppContext.BaseDirectory : null;
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = publishedRoot });
 
 var settings = builder.Configuration.GetSection("IPTVAnalyzer").Get<AnalyzerSettings>() ?? new AnalyzerSettings();
 builder.Services.AddSingleton(settings);

@@ -1,0 +1,110 @@
+name: Release
+
+# Push a tag like v1.0.0 to build, test and publish a GitHub release with the Windows build.
+# Running it manually builds the same zip as a workflow artifact without creating a release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows x64 package
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Determine version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $v = $env:GITHUB_REF_NAME -replace '^v', ''
+          } else {
+            $v = "0.0.0-dev.$env:GITHUB_RUN_NUMBER"
+          }
+          if ($v -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw "Tag '$env:GITHUB_REF_NAME' is not a vMAJOR.MINOR.PATCH version" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "package=IPTVAnalyzer-$v-win-x64" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test IPTVAnalyzer.slnx --configuration Release
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          $out = "artifacts/${{ steps.version.outputs.package }}"
+          $common = @(
+            '--configuration', 'Release', '--runtime', 'win-x64', '--self-contained', 'true',
+            '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true',
+            '-p:EnableCompressionInSingleFile=true', '-p:DebugType=none',
+            "-p:Version=${{ steps.version.outputs.version }}", '--output', $out
+          )
+          dotnet publish src/IPTVAnalyzer.Web @common
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet publish tools/IPTVAnalyzer.Sender @common
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item README.md $out
+          Remove-Item "$out/appsettings.Development.json" -ErrorAction SilentlyContinue
+          Get-ChildItem $out -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $dir = (Resolve-Path "artifacts/${{ steps.version.outputs.package }}").Path
+          # Start from another folder to prove the exe finds its own files.
+          $p = Start-Process "$dir/IPTVAnalyzer.Web.exe" -ArgumentList '--urls', 'http://127.0.0.1:5099' -WorkingDirectory $env:RUNNER_TEMP -PassThru
+          try {
+            $ok = $false
+            for ($i = 0; $i -lt 30 -and -not $ok; $i++) {
+              Start-Sleep 1
+              try {
+                $html = Invoke-WebRequest http://127.0.0.1:5099/ -UseBasicParsing
+                $api = Invoke-RestMethod http://127.0.0.1:5099/api/multicast
+                $ok = $html.Content -match 'IPTV Analyzer'
+              } catch { }
+            }
+            if (-not $ok) { throw 'Published app did not serve the dashboard' }
+            Write-Host 'Dashboard and API respond'
+          } finally {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            Remove-Item "$dir/monitors.json*" -ErrorAction SilentlyContinue
+          }
+
+      - name: Zip
+        id: zip
+        shell: pwsh
+        run: |
+          $pkg = '${{ steps.version.outputs.package }}'
+          Compress-Archive -Path "artifacts/$pkg/*" -DestinationPath "artifacts/$pkg.zip"
+          $hash = (Get-FileHash "artifacts/$pkg.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $pkg.zip" | Set-Content -Encoding ascii "artifacts/$pkg.zip.sha256"
+          "zip=artifacts/$pkg.zip" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.package }}
+          path: |
+            ${{ steps.zip.outputs.zip }}
+            ${{ steps.zip.outputs.zip }}.sha256
+
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $prerelease = if ('${{ steps.version.outputs.version }}' -match '-') { '--prerelease' } else { $null }
+          gh release create $env:GITHUB_REF_NAME '${{ steps.zip.outputs.zip }}' '${{ steps.zip.outputs.zip }}.sha256' `
+            --title "IPTV Analyzer $env:GITHUB_REF_NAME" --generate-notes $prerelease

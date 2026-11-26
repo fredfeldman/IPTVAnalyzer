@@ -5,7 +5,13 @@
 Live monitoring of IPTV **multicast feeds** and health checks for **M3U playlists of HLS channels**, with a web dashboard.
 .NET 10, no external dependencies (the dashboard is plain HTML/JS and works on isolated networks).
 
-## Run
+## Download (Windows)
+
+Get `IPTVAnalyzer-<version>-win-x64.zip` from [Releases](https://github.com/fredfeldman/IPTVAnalyzer/releases), unzip
+it anywhere and run `IPTVAnalyzer.Web.exe` (no .NET install needed), then open http://localhost:5080.
+The zip also contains the test sender, `IPTVAnalyzer.Sender.exe`. Settings and monitors are stored next to the exe.
+
+## Run from source
 
 ```powershell
 dotnet run --project src/IPTVAnalyzer.Web
@@ -76,6 +82,22 @@ src/IPTVAnalyzer.Web       ASP.NET Core host: JSON API (/api/...) + dashboard (w
 tools/IPTVAnalyzer.Sender  Multicast test sender
 tests/IPTVAnalyzer.Tests   xUnit tests (synthetic TS streams, fake HTTP server)
 ```
+
+## Releasing
+
+Push a version tag; the Release workflow tests, publishes self-contained single-file Windows x64 exes, smoke-tests
+them and attaches the zip (plus a SHA-256 file) to a GitHub release with generated notes:
+
+```powershell
+git tag v1.0.0
+```
+
+```powershell
+git push origin v1.0.0
+```
+
+Tags with a suffix (e.g. `v1.1.0-rc.1`) become pre-releases. Running the workflow manually builds the zip as a
+workflow artifact without creating a release.
 
 ## Notes and limits
 
