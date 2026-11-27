@@ -5,6 +5,21 @@
 Live monitoring of IPTV **multicast feeds** and health checks for **M3U playlists of HLS channels**, with a web dashboard.
 .NET 10, no external dependencies (the dashboard is plain HTML/JS and works on isolated networks).
 
+![Multicast feeds overview](docs/images/multicast-overview.png)
+
+<details>
+<summary>More screenshots: feed detail and HLS playlist check</summary>
+
+Feed detail with TR 101 290 counters, MDI and bitrate history, PIDs and events (here an RTP feed with packet loss):
+
+![Multicast feed detail](docs/images/multicast-detail.png)
+
+M3U playlist check with one channel expanded (stalled encoder, 404 and unreachable host flagged as errors):
+
+![HLS playlist check](docs/images/hls-channels.png)
+
+</details>
+
 ## Download (Windows)
 
 Get `IPTVAnalyzer-<version>-win-x64.zip` from [Releases](https://github.com/fredfeldman/IPTVAnalyzer/releases), unzip

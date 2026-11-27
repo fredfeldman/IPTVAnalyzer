@@ -140,7 +140,13 @@ function setTab(t) {
 }
 $$(".tab").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
 function applyTheme(t) { document.documentElement.dataset.theme = t; localStorage.setItem("theme", t); }
-applyTheme(localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+// Deep links: #tab=hls|mc, theme=dark|light, feed=<id> (opens its detail), playlist=<id>, expand=<channel index>
+const link = new URLSearchParams(location.hash.slice(1));
+if (link.get("tab") === "hls" || link.get("tab") === "mc") state.tab = link.get("tab");
+if (link.get("playlist")) { state.plId = link.get("playlist"); state.tab = "hls"; }
+if (link.get("expand")) state.expanded.add(+link.get("expand"));
+applyTheme(["dark", "light"].includes(link.get("theme")) ? link.get("theme")
+  : localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
 $("#theme-toggle").addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
   renderFeeds(); if (state.detail) renderDetail();
@@ -464,3 +470,4 @@ setInterval(() => {
 }, 1000);
 addEventListener("resize", () => { renderFeeds(); if (state.detail) renderDetail(); });
 setTab(state.tab);
+if (link.get("feed")) { state.tab = "mc"; setTab("mc"); openDetail(link.get("feed")); }
